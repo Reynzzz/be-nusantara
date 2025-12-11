@@ -2,21 +2,23 @@ const Gallery = require('../models/Gallery');
 const path = require('path');
 const fs = require('fs');
 
+const BASE = process.env.BASE_URL || ''; // misal: http://123.45.67.89:3000
+
+// Helper untuk build URL gambar/video
 const mapPathsToUrls = (item) => {
   const data = item.toJSON();
 
-  const normalize = (value) => {
+  const normalize = (value, folder) => {
     if (!value) return value;
-    // Only prefix local file paths; keep full URLs untouched
-    return value.startsWith('http') ? value : `/uploads/gallery/${path.basename(value)}`;
+    return value.startsWith('http') ? value : `${BASE}/uploads/${folder}/${path.basename(value)}`;
   };
 
   if (data.type === 'image') {
-    data.url = normalize(data.url);
+    data.url = normalize(data.url, 'gallery');
   }
 
   if (data.thumbnailUrl) {
-    data.thumbnailUrl = normalize(data.thumbnailUrl);
+    data.thumbnailUrl = normalize(data.thumbnailUrl, 'gallery');
   }
 
   return data;
@@ -25,20 +27,10 @@ const mapPathsToUrls = (item) => {
 // GET /api/gallery
 const getAllGallery = async (req, res) => {
   try {
-    const items = await Gallery.findAll({
-      order: [['createdAt', 'DESC']],
-    });
-
-    res.json({
-      success: true,
-      data: items.map(mapPathsToUrls),
-    });
+    const items = await Gallery.findAll({ order: [['createdAt', 'DESC']] });
+    res.json({ success: true, data: items.map(mapPathsToUrls) });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching gallery items',
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: 'Error fetching gallery items', error: error.message });
   }
 };
 
@@ -48,23 +40,11 @@ const getGalleryById = async (req, res) => {
     const { id } = req.params;
     const item = await Gallery.findByPk(id);
 
-    if (!item) {
-      return res.status(404).json({
-        success: false,
-        message: 'Gallery item not found',
-      });
-    }
+    if (!item) return res.status(404).json({ success: false, message: 'Gallery item not found' });
 
-    res.json({
-      success: true,
-      data: mapPathsToUrls(item),
-    });
+    res.json({ success: true, data: mapPathsToUrls(item) });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching gallery item',
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: 'Error fetching gallery item', error: error.message });
   }
 };
 
@@ -73,40 +53,17 @@ const createGalleryItem = async (req, res) => {
   try {
     const { title, type, url, thumbnailUrl, description } = req.body;
 
-    if (!title || !type) {
-      return res.status(400).json({
-        success: false,
-        message: 'Title and type are required',
-      });
-    }
-
-    if (!['image', 'video'].includes(type)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Type must be image or video',
-      });
-    }
+    if (!title || !type) return res.status(400).json({ success: false, message: 'Title and type are required' });
+    if (!['image', 'video'].includes(type)) return res.status(400).json({ success: false, message: 'Type must be image or video' });
 
     let finalUrl = url;
 
     if (type === 'image') {
-      if (req.file) {
-        finalUrl = req.file.path;
-      }
+      if (req.file) finalUrl = req.file.path;
 
-      if (!finalUrl) {
-        return res.status(400).json({
-          success: false,
-          message: 'Image file is required for image type',
-        });
-      }
+      if (!finalUrl) return res.status(400).json({ success: false, message: 'Image file is required for image type' });
     } else {
-      if (!finalUrl) {
-        return res.status(400).json({
-          success: false,
-          message: 'Video URL is required',
-        });
-      }
+      if (!finalUrl) return res.status(400).json({ success: false, message: 'Video URL is required' });
     }
 
     const item = await Gallery.create({
@@ -117,25 +74,12 @@ const createGalleryItem = async (req, res) => {
       description: description || null,
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Gallery item created successfully',
-      data: mapPathsToUrls(item),
-    });
+    res.status(201).json({ success: true, message: 'Gallery item created successfully', data: mapPathsToUrls(item) });
   } catch (error) {
     if (req.file && req.file.path) {
-      try {
-        fs.unlinkSync(req.file.path);
-      } catch (unlinkError) {
-        console.error('Error deleting file:', unlinkError);
-      }
+      try { fs.unlinkSync(req.file.path); } catch (unlinkError) { console.error('Error deleting file:', unlinkError); }
     }
-
-    res.status(400).json({
-      success: false,
-      message: 'Error creating gallery item',
-      error: error.message,
-    });
+    res.status(400).json({ success: false, message: 'Error creating gallery item', error: error.message });
   }
 };
 
@@ -146,20 +90,8 @@ const updateGalleryItem = async (req, res) => {
     const { title, type, url, thumbnailUrl, description } = req.body;
 
     const item = await Gallery.findByPk(id);
-
-    if (!item) {
-      return res.status(404).json({
-        success: false,
-        message: 'Gallery item not found',
-      });
-    }
-
-    if (type && !['image', 'video'].includes(type)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Type must be image or video',
-      });
-    }
+    if (!item) return res.status(404).json({ success: false, message: 'Gallery item not found' });
+    if (type && !['image', 'video'].includes(type)) return res.status(400).json({ success: false, message: 'Type must be image or video' });
 
     let finalUrl = item.url;
     let finalThumbnail = thumbnailUrl ?? item.thumbnailUrl;
@@ -167,26 +99,15 @@ const updateGalleryItem = async (req, res) => {
 
     if (finalType === 'image') {
       if (!req.file && item.type !== 'image' && !url) {
-        return res.status(400).json({
-          success: false,
-          message: 'Image file is required when changing type to image',
-        });
+        return res.status(400).json({ success: false, message: 'Image file is required when changing type to image' });
       }
       if (req.file) {
-        // remove old file if stored locally
-        if (item.url && !item.url.startsWith('http') && fs.existsSync(item.url)) {
-          try {
-            fs.unlinkSync(item.url);
-          } catch (unlinkError) {
-            console.error('Error deleting old file:', unlinkError);
-          }
-        }
+        if (item.url && !item.url.startsWith('http') && fs.existsSync(item.url)) fs.unlinkSync(item.url);
         finalUrl = req.file.path;
       } else if (url) {
         finalUrl = url;
       }
     } else {
-      // video
       finalUrl = url || item.url;
     }
 
@@ -198,25 +119,12 @@ const updateGalleryItem = async (req, res) => {
       description: description ?? item.description,
     });
 
-    res.json({
-      success: true,
-      message: 'Gallery item updated successfully',
-      data: mapPathsToUrls(item),
-    });
+    res.json({ success: true, message: 'Gallery item updated successfully', data: mapPathsToUrls(item) });
   } catch (error) {
     if (req.file && req.file.path) {
-      try {
-        fs.unlinkSync(req.file.path);
-      } catch (unlinkError) {
-        console.error('Error deleting file:', unlinkError);
-      }
+      try { fs.unlinkSync(req.file.path); } catch (unlinkError) { console.error('Error deleting file:', unlinkError); }
     }
-
-    res.status(400).json({
-      success: false,
-      message: 'Error updating gallery item',
-      error: error.message,
-    });
+    res.status(400).json({ success: false, message: 'Error updating gallery item', error: error.message });
   }
 };
 
@@ -225,43 +133,19 @@ const deleteGalleryItem = async (req, res) => {
   try {
     const { id } = req.params;
     const item = await Gallery.findByPk(id);
+    if (!item) return res.status(404).json({ success: false, message: 'Gallery item not found' });
 
-    if (!item) {
-      return res.status(404).json({
-        success: false,
-        message: 'Gallery item not found',
-      });
-    }
-
-    // remove stored files when applicable
     const removeIfLocal = (value) => {
-      if (value && !value.startsWith('http') && fs.existsSync(value)) {
-        try {
-          fs.unlinkSync(value);
-        } catch (unlinkError) {
-          console.error('Error deleting file:', unlinkError);
-        }
-      }
+      if (value && !value.startsWith('http') && fs.existsSync(value)) fs.unlinkSync(value);
     };
 
-    if (item.type === 'image') {
-      removeIfLocal(item.url);
-    }
-
+    if (item.type === 'image') removeIfLocal(item.url);
     removeIfLocal(item.thumbnailUrl);
 
     await item.destroy();
-
-    res.json({
-      success: true,
-      message: 'Gallery item deleted successfully',
-    });
+    res.json({ success: true, message: 'Gallery item deleted successfully' });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error deleting gallery item',
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: 'Error deleting gallery item', error: error.message });
   }
 };
 
@@ -272,5 +156,3 @@ module.exports = {
   updateGalleryItem,
   deleteGalleryItem,
 };
-
-

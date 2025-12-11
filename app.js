@@ -25,8 +25,19 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+const allowedOrigins = [
+  'http://localhost:8080',
+  'https://nusantaramc.org',
+  'https://www.nusantaramc.org'
+];
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:8080',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed'));
+    }
+  },
   credentials: true
 }));
 app.use(bodyParser.json());
@@ -76,11 +87,11 @@ const startServer = async () => {
   try {
     // Test database connection
     await testConnection();
-    
+
     // Sync models with database (force: false means it won't drop existing tables)
     await sequelize.sync({ alter: true });
     console.log('✅ Database models synchronized');
-    
+
     // Start server
     app.listen(PORT, () => {
       console.log(`🚀 Server is running on http://localhost:${PORT}`);
@@ -100,4 +111,3 @@ process.on('SIGTERM', async () => {
   await sequelize.close();
   process.exit(0);
 });
-

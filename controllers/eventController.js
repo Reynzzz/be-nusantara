@@ -2,32 +2,30 @@ const Event = require('../models/Event');
 const path = require('path');
 const fs = require('fs');
 
+const BASE = process.env.BASE_URL || ''; // misal: http://123.45.67.89:3000
+
+// Helper untuk build URL gambar
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  return `${BASE}/uploads/events/${path.basename(imagePath)}`;
+};
+
 // Get all events
 const getAllEvents = async (req, res) => {
   try {
     const events = await Event.findAll({
       order: [['date', 'DESC']]
     });
-    
-    // Transform image paths to URLs
+
     const eventsWithUrls = events.map(event => {
       const eventData = event.toJSON();
-      if (eventData.image) {
-        eventData.image = `/uploads/events/${path.basename(eventData.image)}`;
-      }
+      eventData.image = getImageUrl(eventData.image);
       return eventData;
     });
-    
-    res.json({
-      success: true,
-      data: eventsWithUrls
-    });
+
+    res.json({ success: true, data: eventsWithUrls });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching events',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error fetching events', error: error.message });
   }
 };
 
@@ -36,29 +34,17 @@ const getEventById = async (req, res) => {
   try {
     const { id } = req.params;
     const event = await Event.findByPk(id);
-    
+
     if (!event) {
-      return res.status(404).json({
-        success: false,
-        message: 'Event not found'
-      });
+      return res.status(404).json({ success: false, message: 'Event not found' });
     }
-    
+
     const eventData = event.toJSON();
-    if (eventData.image) {
-      eventData.image = `/uploads/events/${path.basename(eventData.image)}`;
-    }
-    
-    res.json({
-      success: true,
-      data: eventData
-    });
+    eventData.image = getImageUrl(eventData.image);
+
+    res.json({ success: true, data: eventData });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching event',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error fetching event', error: error.message });
   }
 };
 
@@ -66,45 +52,20 @@ const getEventById = async (req, res) => {
 const createEvent = async (req, res) => {
   try {
     const { title, description, date, location } = req.body;
-    
-    // Get image path from uploaded file
+
     let imagePath = null;
     if (req.file) {
       imagePath = req.file.path;
     }
-    
-    const event = await Event.create({
-      title,
-      description,
-      date,
-      location,
-      image: imagePath
-    });
-    
+
+    const event = await Event.create({ title, description, date, location, image: imagePath });
     const eventData = event.toJSON();
-    if (eventData.image) {
-      eventData.image = `/uploads/events/${path.basename(eventData.image)}`;
-    }
-    
-    res.status(201).json({
-      success: true,
-      message: 'Event created successfully',
-      data: eventData
-    });
+    eventData.image = getImageUrl(eventData.image);
+
+    res.status(201).json({ success: true, message: 'Event created successfully', data: eventData });
   } catch (error) {
-    // Delete uploaded file if event creation fails
-    if (req.file && req.file.path) {
-      try {
-        fs.unlinkSync(req.file.path);
-      } catch (unlinkError) {
-        console.error('Error deleting file:', unlinkError);
-      }
-    }
-    res.status(400).json({
-      success: false,
-      message: 'Error creating event',
-      error: error.message
-    });
+    if (req.file && req.file.path) fs.unlinkSync(req.file.path);
+    res.status(400).json({ success: false, message: 'Error creating event', error: error.message });
   }
 };
 
@@ -113,62 +74,24 @@ const updateEvent = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, date, location } = req.body;
-    
+
     const event = await Event.findByPk(id);
-    
-    if (!event) {
-      return res.status(404).json({
-        success: false,
-        message: 'Event not found'
-      });
-    }
-    
-    // Delete old image if new image is uploaded
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
     let imagePath = event.image;
     if (req.file) {
-      // Delete old image file if exists
-      if (event.image && fs.existsSync(event.image)) {
-        try {
-          fs.unlinkSync(event.image);
-        } catch (unlinkError) {
-          console.error('Error deleting old file:', unlinkError);
-        }
-      }
+      if (event.image && fs.existsSync(event.image)) fs.unlinkSync(event.image);
       imagePath = req.file.path;
     }
-    
-    await event.update({
-      title,
-      description,
-      date,
-      location,
-      image: imagePath
-    });
-    
+
+    await event.update({ title, description, date, location, image: imagePath });
     const eventData = event.toJSON();
-    if (eventData.image) {
-      eventData.image = `/uploads/events/${path.basename(eventData.image)}`;
-    }
-    
-    res.json({
-      success: true,
-      message: 'Event updated successfully',
-      data: eventData
-    });
+    eventData.image = getImageUrl(eventData.image);
+
+    res.json({ success: true, message: 'Event updated successfully', data: eventData });
   } catch (error) {
-    // Delete uploaded file if update fails
-    if (req.file && req.file.path) {
-      try {
-        fs.unlinkSync(req.file.path);
-      } catch (unlinkError) {
-        console.error('Error deleting file:', unlinkError);
-      }
-    }
-    res.status(400).json({
-      success: false,
-      message: 'Error updating event',
-      error: error.message
-    });
+    if (req.file && req.file.path) fs.unlinkSync(req.file.path);
+    res.status(400).json({ success: false, message: 'Error updating event', error: error.message });
   }
 };
 
@@ -176,37 +99,15 @@ const updateEvent = async (req, res) => {
 const deleteEvent = async (req, res) => {
   try {
     const { id } = req.params;
-    
     const event = await Event.findByPk(id);
-    
-    if (!event) {
-      return res.status(404).json({
-        success: false,
-        message: 'Event not found'
-      });
-    }
-    
-    // Delete associated image file
-    if (event.image && fs.existsSync(event.image)) {
-      try {
-        fs.unlinkSync(event.image);
-      } catch (unlinkError) {
-        console.error('Error deleting file:', unlinkError);
-      }
-    }
-    
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+    if (event.image && fs.existsSync(event.image)) fs.unlinkSync(event.image);
+
     await event.destroy();
-    
-    res.json({
-      success: true,
-      message: 'Event deleted successfully'
-    });
+    res.json({ success: true, message: 'Event deleted successfully' });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error deleting event',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error deleting event', error: error.message });
   }
 };
 
@@ -217,4 +118,3 @@ module.exports = {
   updateEvent,
   deleteEvent
 };
-

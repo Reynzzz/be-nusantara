@@ -2,6 +2,8 @@ const About = require('../models/About');
 const path = require('path');
 const fs = require('fs');
 
+const BASE = process.env.BASE_URL; // gunakan domain/IP VPS
+
 const parseJsonField = (value, fallback = []) => {
   if (!value) return fallback;
   try {
@@ -12,12 +14,16 @@ const parseJsonField = (value, fallback = []) => {
   }
 };
 
+const buildUrl = (folder, filename) => {
+  if (!filename) return null;
+  return `${BASE}/uploads/${folder}/${filename}`;
+};
+
 // Get about content
 const getAbout = async (req, res) => {
   try {
     let about = await About.findOne();
-    
-    // If no content exists, create default
+
     if (!about) {
       about = await About.create({
         hero_title: '',
@@ -36,24 +42,27 @@ const getAbout = async (req, res) => {
         contact_address: ''
       });
     }
-    
-    const aboutData = about.toJSON();
-    if (aboutData.history_image_url) {
-      aboutData.history_image_url = `/uploads/about/${path.basename(aboutData.history_image_url)}`;
+
+    const data = about.toJSON();
+
+    // Ganti path menjadi URL lengkap
+    if (data.history_image_url) {
+      data.history_image_url = buildUrl(
+        'about',
+        path.basename(data.history_image_url)
+      );
     }
-    if (aboutData.management && Array.isArray(aboutData.management)) {
-      aboutData.management = aboutData.management.map((item) => ({
-        ...item,
-        photo_url: item?.photo_url
-          ? `/uploads/about/${path.basename(item.photo_url)}`
-          : item?.photo_url || null,
+
+    if (Array.isArray(data.management)) {
+      data.management = data.management.map(m => ({
+        ...m,
+        photo_url: m?.photo_url
+          ? buildUrl('about', path.basename(m.photo_url))
+          : null
       }));
     }
-    
-    res.json({
-      success: true,
-      data: aboutData
-    });
+
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -66,143 +75,102 @@ const getAbout = async (req, res) => {
 // Update about content
 const updateAbout = async (req, res) => {
   try {
-    const {
-      hero_title,
-      hero_tagline,
-      history_title,
-      history_text,
-      vision_title,
-      vision_text,
-      mission_title,
-      mission_text,
-      values,
-      management,
-      contact_phone,
-      contact_email,
-      contact_address
-    } = req.body;
-    const managementImageIndexes = req.body.management_image_indexes;
-    
-    // Get image path from uploaded file (for history_image_url)
-    let historyImagePath = null;
-    if (req.files && req.files.history_image && req.files.history_image[0]) {
-      historyImagePath = req.files.history_image[0].path;
-    }
-    
+    const body = req.body;
+    const imageIndexes = body.management_image_indexes;
+
     let about = await About.findOne();
     const existingManagement = about?.management || [];
-    const parsedValues = parseJsonField(values, about?.values || []);
-    const parsedManagement = parseJsonField(management, existingManagement);
-    // Merge with existing photo if not provided to keep previously saved path
-    let managementData = parsedManagement.map((item, idx) => ({
-      ...existingManagement[idx],
+
+    const parsedValues = parseJsonField(body.values, about?.values);
+    const parsedManagement = parseJsonField(body.management, existingManagement);
+
+    // Merge management data
+    let managementData = parsedManagement.map((item, i) => ({
+      ...existingManagement[i],
       ...item,
     }));
-    // Handle management images uploads mapped by provided indexes
-    const uploadedManagementImages = (req.files && req.files.management_images) || [];
-    const uploadIndexes = Array.isArray(managementImageIndexes)
-      ? managementImageIndexes
-      : managementImageIndexes
-        ? [managementImageIndexes]
+
+    // Upload history image
+    let historyImagePath = about?.history_image_url;
+    if (req.files?.history_image?.[0]) {
+      const file = req.files.history_image[0];
+
+      // delete old file
+      if (historyImagePath && fs.existsSync(historyImagePath)) {
+        try { fs.unlinkSync(historyImagePath); } catch {}
+      }
+      historyImagePath = file.path;
+    }
+
+    // Upload management images
+    const uploadedManagement = req.files?.management_images || [];
+    const uploadIndexes = Array.isArray(imageIndexes)
+      ? imageIndexes
+      : imageIndexes
+        ? [imageIndexes]
         : [];
-    uploadedManagementImages.forEach((file, idx) => {
+
+    uploadedManagement.forEach((file, idx) => {
       const targetIndex = Number(uploadIndexes[idx]);
-      if (!Number.isNaN(targetIndex) && managementData[targetIndex]) {
-        const existingPhotoPath = managementData[targetIndex].photo_url;
-        if (existingPhotoPath && fs.existsSync(existingPhotoPath)) {
-          try {
-            fs.unlinkSync(existingPhotoPath);
-          } catch (unlinkError) {
-            console.error('Error deleting old management photo:', unlinkError);
-          }
+      if (!isNaN(targetIndex) && managementData[targetIndex]) {
+        const old = managementData[targetIndex].photo_url;
+        if (old && fs.existsSync(old)) {
+          try { fs.unlinkSync(old); } catch {}
         }
         managementData[targetIndex].photo_url = file.path;
       }
     });
-    
+
+    // Create new or update
     if (!about) {
-      // Create new if doesn't exist
       about = await About.create({
-        hero_title,
-        hero_tagline,
-        history_title,
-        history_text,
+        ...body,
+        values: parsedValues,
+        management: managementData,
         history_image_url: historyImagePath,
-        vision_title,
-        vision_text,
-        mission_title,
-        mission_text,
-        values: parsedValues || [],
-        management: managementData || [],
-        contact_phone,
-        contact_email,
-        contact_address
       });
     } else {
-      // Delete old image if new image is uploaded
-      if (historyImagePath && about.history_image_url && fs.existsSync(about.history_image_url)) {
-        try {
-          fs.unlinkSync(about.history_image_url);
-        } catch (unlinkError) {
-          console.error('Error deleting old file:', unlinkError);
-        }
-      }
-      
-      // Update existing
       await about.update({
-        hero_title,
-        hero_tagline,
-        history_title,
-        history_text,
-        history_image_url: historyImagePath || about.history_image_url,
-        vision_title,
-        vision_text,
-        mission_title,
-        mission_text,
-        values: parsedValues || about.values,
-        management: managementData || about.management,
-        contact_phone,
-        contact_email,
-        contact_address
+        ...body,
+        values: parsedValues,
+        management: managementData,
+        history_image_url: historyImagePath,
       });
     }
-    
-    const aboutData = about.toJSON();
-    if (aboutData.history_image_url) {
-      aboutData.history_image_url = `/uploads/about/${path.basename(aboutData.history_image_url)}`;
+
+    // Convert response paths → URL lengkap
+    const data = about.toJSON();
+
+    if (data.history_image_url) {
+      data.history_image_url = buildUrl('about', path.basename(data.history_image_url));
     }
-    if (aboutData.management && Array.isArray(aboutData.management)) {
-      aboutData.management = aboutData.management.map((item) => ({
+
+    if (Array.isArray(data.management)) {
+      data.management = data.management.map(item => ({
         ...item,
         photo_url: item?.photo_url
-          ? `/uploads/about/${path.basename(item.photo_url)}`
-          : item?.photo_url || null,
+          ? buildUrl('about', path.basename(item.photo_url))
+          : null,
       }));
     }
-    
+
     res.json({
       success: true,
       message: 'About content updated successfully',
-      data: aboutData
+      data
     });
+
   } catch (error) {
-    // Delete uploaded file if update fails
-    if (req.files && req.files.history_image && req.files.history_image[0]) {
-      try {
-        fs.unlinkSync(req.files.history_image[0].path);
-      } catch (unlinkError) {
-        console.error('Error deleting file:', unlinkError);
-      }
+    // cleanup uploaded files
+    if (req.files?.history_image?.[0]) {
+      try { fs.unlinkSync(req.files.history_image[0].path); } catch {}
     }
-    if (req.files && req.files.management_images) {
-      req.files.management_images.forEach((file) => {
-        try {
-          fs.unlinkSync(file.path);
-        } catch (unlinkError) {
-          console.error('Error deleting management photo:', unlinkError);
-        }
+    if (req.files?.management_images) {
+      req.files.management_images.forEach(file => {
+        try { fs.unlinkSync(file.path); } catch {}
       });
     }
+
     res.status(400).json({
       success: false,
       message: 'Error updating about content',
@@ -211,8 +179,4 @@ const updateAbout = async (req, res) => {
   }
 };
 
-module.exports = {
-  getAbout,
-  updateAbout
-};
-
+module.exports = { getAbout, updateAbout };
