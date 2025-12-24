@@ -46,7 +46,7 @@ const getNewsById = async (req, res) => {
 // Create new news
 const createNews = async (req, res) => {
   try {
-    const { title, excerpt, content, date } = req.body;
+    const { title, excerpt, content, date, external_link } = req.body;
 
     let imagePath = req.file ? req.file.path : null;
 
@@ -54,6 +54,7 @@ const createNews = async (req, res) => {
       title,
       excerpt,
       content,
+      external_link,
       image: imagePath,
       date: date || new Date()
     });
@@ -74,7 +75,7 @@ const createNews = async (req, res) => {
 const updateNews = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, excerpt, content, date } = req.body;
+    const { title, excerpt, content, date, external_link } = req.body;
 
     const news = await News.findByPk(id);
     if (!news) return res.status(404).json({ success: false, message: 'News not found' });
@@ -87,7 +88,7 @@ const updateNews = async (req, res) => {
       imagePath = req.file.path;
     }
 
-    await news.update({ title, excerpt, content, image: imagePath, date });
+    await news.update({ title, excerpt, content, image: imagePath, date, external_link });
 
     const newsData = news.toJSON();
     newsData.image = getImageUrl(newsData.image);

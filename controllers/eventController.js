@@ -51,14 +51,14 @@ const getEventById = async (req, res) => {
 // Create new event
 const createEvent = async (req, res) => {
   try {
-    const { title, description, date, location } = req.body;
+    const { title, description, date, location, registration_link } = req.body;
 
     let imagePath = null;
     if (req.file) {
       imagePath = req.file.path;
     }
 
-    const event = await Event.create({ title, description, date, location, image: imagePath });
+    const event = await Event.create({ title, description, date, location, registration_link, image: imagePath });
     const eventData = event.toJSON();
     eventData.image = getImageUrl(eventData.image);
 
@@ -73,7 +73,7 @@ const createEvent = async (req, res) => {
 const updateEvent = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, date, location } = req.body;
+    const { title, description, date, location, registration_link } = req.body;
 
     const event = await Event.findByPk(id);
     if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
@@ -84,7 +84,7 @@ const updateEvent = async (req, res) => {
       imagePath = req.file.path;
     }
 
-    await event.update({ title, description, date, location, image: imagePath });
+    await event.update({ title, description, date, location, registration_link, image: imagePath });
     const eventData = event.toJSON();
     eventData.image = getImageUrl(eventData.image);
 

@@ -1,38 +1,21 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const Event = sequelize.define('Event', {
+const Category = sequelize.define('Category', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
-  title: {
+  name: {
     type: DataTypes.STRING,
     allowNull: false,
-    validate: {
-      notEmpty: true
-    }
+    unique: true
   },
-  description: {
-    type: DataTypes.TEXT,
-    allowNull: false
-  },
-  date: {
-    type: DataTypes.DATE,
-    allowNull: false
-  },
-  location: {
+  slug: {
     type: DataTypes.STRING,
-    allowNull: false
-  },
-  image: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  registration_link: {
-    type: DataTypes.STRING,
-    allowNull: true
+    allowNull: false,
+    unique: true
   },
   createdAt: {
     type: DataTypes.DATE,
@@ -43,9 +26,8 @@ const Event = sequelize.define('Event', {
     defaultValue: DataTypes.NOW
   }
 }, {
-  tableName: 'events',
+  tableName: 'categories',
   timestamps: true
 });
 
-module.exports = Event;
-
+module.exports = Category;

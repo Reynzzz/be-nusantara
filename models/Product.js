@@ -25,9 +25,13 @@ const Product = sequelize.define('Product', {
     type: DataTypes.TEXT,
     allowNull: false
   },
-  category: {
-    type: DataTypes.ENUM('jersey', 'jaket', 'aksesoris', 'sparepart'),
-    allowNull: false
+  categoryId: {
+    type: DataTypes.INTEGER,
+    allowNull: true, // Allow null initially for migration
+    references: {
+      model: 'categories',
+      key: 'id'
+    }
   },
   stock: {
     type: DataTypes.INTEGER,
@@ -38,6 +42,10 @@ const Product = sequelize.define('Product', {
     }
   },
   image: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  whatsapp_number: {
     type: DataTypes.STRING,
     allowNull: true
   },
@@ -53,6 +61,11 @@ const Product = sequelize.define('Product', {
   tableName: 'products',
   timestamps: true
 });
+
+const Category = require('./Category');
+
+Product.belongsTo(Category, { foreignKey: 'categoryId', as: 'categoryData' });
+Category.hasMany(Product, { foreignKey: 'categoryId' });
 
 module.exports = Product;
 

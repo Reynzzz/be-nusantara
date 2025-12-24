@@ -26,6 +26,10 @@ const News = sequelize.define('News', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  external_link: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   date: {
     type: DataTypes.DATE,
     allowNull: false,

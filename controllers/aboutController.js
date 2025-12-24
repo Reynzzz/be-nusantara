@@ -28,6 +28,9 @@ const getAbout = async (req, res) => {
       about = await About.create({
         hero_title: '',
         hero_tagline: '',
+        home_hero_title: '',
+        home_hero_tagline: '',
+        home_bg_video: '',
         history_title: '',
         history_text: '',
         history_image_url: '',
@@ -36,6 +39,8 @@ const getAbout = async (req, res) => {
         mission_title: '',
         mission_text: '',
         values: [],
+        member_benefits: [],
+        member_registration_link: '',
         management: [],
         contact_phone: '',
         contact_email: '',
@@ -80,9 +85,11 @@ const updateAbout = async (req, res) => {
 
     let about = await About.findOne();
     const existingManagement = about?.management || [];
+    const existingBenefits = about?.member_benefits || [];
 
     const parsedValues = parseJsonField(body.values, about?.values);
     const parsedManagement = parseJsonField(body.management, existingManagement);
+    const parsedBenefits = parseJsonField(body.member_benefits, existingBenefits);
 
     // Merge management data
     let managementData = parsedManagement.map((item, i) => ({
@@ -127,6 +134,7 @@ const updateAbout = async (req, res) => {
         ...body,
         values: parsedValues,
         management: managementData,
+        member_benefits: parsedBenefits,
         history_image_url: historyImagePath,
       });
     } else {
@@ -134,6 +142,7 @@ const updateAbout = async (req, res) => {
         ...body,
         values: parsedValues,
         management: managementData,
+        member_benefits: parsedBenefits,
         history_image_url: historyImagePath,
       });
     }

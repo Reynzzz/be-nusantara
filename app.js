@@ -12,6 +12,8 @@ const Product = require('./models/Product');
 const About = require('./models/About');
 const Gallery = require('./models/Gallery');
 const Milestone = require('./models/Milestone');
+const HomeContent = require('./models/HomeContent');
+const Category = require('./models/Category');
 
 // Import routes
 const eventRoutes = require('./routes/eventRoutes');
@@ -20,6 +22,8 @@ const productRoutes = require('./routes/productRoutes');
 const aboutRoutes = require('./routes/aboutRoutes');
 const galleryRoutes = require('./routes/galleryRoutes');
 const milestoneRoutes = require('./routes/milestoneRoutes');
+const homeRoutes = require('./routes/homeRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -54,6 +58,8 @@ app.use('/api/products', productRoutes);
 app.use('/api/about', aboutRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/milestones', milestoneRoutes);
+app.use('/api/home', homeRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

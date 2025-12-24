@@ -1,36 +1,31 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const Event = sequelize.define('Event', {
+const HomeContent = sequelize.define('HomeContent', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
-  title: {
+  hero_title: {
     type: DataTypes.STRING,
-    allowNull: false,
-    validate: {
-      notEmpty: true
-    }
+    allowNull: true,
+    defaultValue: "RIDE WITH PASSION"
   },
-  description: {
-    type: DataTypes.TEXT,
-    allowNull: false
-  },
-  date: {
-    type: DataTypes.DATE,
-    allowNull: false
-  },
-  location: {
+  hero_tagline: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true,
+    defaultValue: "Bergabunglah dengan komunitas motor terbesar dan terseru di Indonesia"
   },
-  image: {
+  bg_video: {
     type: DataTypes.STRING,
     allowNull: true
   },
-  registration_link: {
+  about_image: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  cta_image: {
     type: DataTypes.STRING,
     allowNull: true
   },
@@ -43,9 +38,8 @@ const Event = sequelize.define('Event', {
     defaultValue: DataTypes.NOW
   }
 }, {
-  tableName: 'events',
+  tableName: 'home_content',
   timestamps: true
 });
 
-module.exports = Event;
-
+module.exports = HomeContent;

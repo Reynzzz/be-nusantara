@@ -15,6 +15,18 @@ const About = sequelize.define('About', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  home_hero_title: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  home_hero_tagline: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  home_bg_video: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   history_title: {
     type: DataTypes.STRING,
     allowNull: true
@@ -47,6 +59,15 @@ const About = sequelize.define('About', {
     type: DataTypes.JSONB,
     allowNull: true,
     defaultValue: []
+  },
+  member_benefits: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: []
+  },
+  member_registration_link: {
+    type: DataTypes.STRING,
+    allowNull: true
   },
   management: {
     type: DataTypes.JSONB,
